@@ -1,0 +1,33 @@
+Index: src/Config.h
+===================================================================
+--- src/Config.h	(revision 557)
++++ src/Config.h	(working copy)
+@@ -28,9 +28,9 @@
+ //
+ // Trace the object lifecycle
+ //
+-#define SUPPORT_TRACE_LIFECYCLE 1
++//#define SUPPORT_TRACE_LIFECYCLE 1
+ 
+ //
+ // Enable the dtrace or systemtap probes
+ //
+-#define SUPPORT_PROBES 1
++//#define SUPPORT_PROBES 1
+Index: setup.py
+===================================================================
+--- setup.py	(revision 557)
++++ setup.py	(working copy)
+@@ -537,9 +537,9 @@
+ 
+ def prepare_v8():
+     try:
+-        checkout_v8()
+-        prepare_gyp()
+-        build_v8()
++       # checkout_v8()
++       # prepare_gyp()
++       # build_v8()
+         generate_probes()
+     except Exception as e:
+         print("ERROR: fail to checkout and build v8, %s" % e)
