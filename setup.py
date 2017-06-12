@@ -39,7 +39,6 @@ group.add_argument("--linux-x86-64", action="store_true", default=False, dest="n
 group.add_argument("--win-x86", action="store_true", default=False, dest="win32", help="Install Fridafy for Windows 32bit")
 group.add_argument("--win-x86-64", action="store_true", default=False, dest="win64", help="Install Fridafy for Windows 64bit")
 args = parser.parse_args()
-print args
 if not (args.osx  | args.nix32 | args.nix64 | args.win32 | args.win64):
     print("Error: You must select at least an architecture!")
 else:

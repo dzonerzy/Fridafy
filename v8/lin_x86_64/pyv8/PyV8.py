@@ -35,10 +35,10 @@ __author__ = 'Flier Lu <flier.lu@gmail.com>'
 __version__ = '1.0'
 
 __all__ = ["ReadOnly", "DontEnum", "DontDelete", "Internal",
-           "JSError", "JSObject", "JSNull", "JSUndefined", "JSArray", "JSFunction",
+           "JSError", "JSObject", "JSArray", "JSFunction",
            "JSClass", "JSEngine", "JSContext",
            "JSObjectSpace", "JSAllocationAction",
-           "JSStackTrace", "JSStackFrame", "profiler",
+           "JSStackTrace", "JSStackFrame", "profiler", 
            "JSExtension", "JSLocker", "JSUnlocker", "AST"]
 
 class JSAttribute(object):
@@ -47,14 +47,13 @@ class JSAttribute(object):
 
     def __call__(self, func):
         setattr(func, "__%s__" % self.name, True)
-
+        
         return func
 
 ReadOnly = JSAttribute(name='readonly')
 DontEnum = JSAttribute(name='dontenum')
 DontDelete = JSAttribute(name='dontdel')
 Internal = JSAttribute(name='internal')
-
 
 class JSError(Exception):
     def __init__(self, impl):
@@ -117,8 +116,6 @@ class JSError(Exception):
 _PyV8._JSError._jsclass = JSError
 
 JSObject = _PyV8.JSObject
-JSNull = _PyV8.JSNull
-JSUndefined = _PyV8.JSUndefined
 JSArray = _PyV8.JSArray
 JSFunction = _PyV8.JSFunction
 
@@ -126,7 +123,6 @@ JSFunction = _PyV8.JSFunction
 
 JS_ESCAPABLE = re.compile(r'([^\x00-\x7f])')
 HAS_UTF8 = re.compile(r'[\x80-\xff]')
-
 
 def _js_escape_unicode_re_callack(match):
     n = ord(match.group(0))
@@ -139,7 +135,6 @@ def _js_escape_unicode_re_callack(match):
         s2 = 0xdc00 | (n & 0x3ff)
         return '\\u%04x\\u%04x' % (s1, s2)
 
-
 def js_escape_unicode(text):
     """Return an ASCII-only representation of a JavaScript string"""
     if isinstance(text, str):
@@ -150,11 +145,9 @@ def js_escape_unicode(text):
 
     return str(JS_ESCAPABLE.sub(_js_escape_unicode_re_callack, text))
 
-
 class JSExtension(_PyV8.JSExtension):
     def __init__(self, name, source, callback=None, dependencies=[], register=True):
         _PyV8.JSExtension.__init__(self, js_escape_unicode(name), js_escape_unicode(source), callback, dependencies, register)
-
 
 def func_apply(self, thisArg, argArray=[]):
     if isinstance(thisArg, JSObject):
@@ -165,7 +158,6 @@ def func_apply(self, thisArg, argArray=[]):
     return self.invoke(this, argArray)
 
 JSFunction.apply = func_apply
-
 
 class JSLocker(_PyV8.JSLocker):
     def __enter__(self):
@@ -191,7 +183,6 @@ class JSLocker(_PyV8.JSLocker):
         def __nonzero__(self):
             return self.entered()
 
-
 class JSUnlocker(_PyV8.JSUnlocker):
     def __enter__(self):
         self.enter()
@@ -207,7 +198,6 @@ class JSUnlocker(_PyV8.JSUnlocker):
     else:
         def __nonzero__(self):
             return self.entered()
-
 
 class JSClass(object):
     __properties__ = {}
@@ -279,7 +269,6 @@ class JSClass(object):
         "Removes a watchpoint set with the watch method."
         del self.__watchpoints__[prop]
 
-
 class JSClassConstructor(JSClass):
     def __init__(self, cls):
         self.cls = cls
@@ -294,7 +283,6 @@ class JSClassConstructor(JSClass):
     def __call__(self, *args, **kwds):
         return self.cls(*args, **kwds)
 
-
 class JSClassPrototype(JSClass):
     def __init__(self, cls):
         self.cls = cls
@@ -306,7 +294,6 @@ class JSClassPrototype(JSClass):
     @property
     def name(self):
         return self.cls.__name__
-
 
 class JSDebugProtocol(object):
     """
@@ -386,8 +373,7 @@ class JSDebugProtocol(object):
         obj = json.loads(payload)
 
         return JSDebugProtocol.Event(obj) if obj['type'] == 'event' else JSDebugProtocol.Response(obj)
-
-
+    
 class JSDebugEvent(_PyV8.JSDebugEvent):
     class FrameData(object):
         def __init__(self, frame, count, name, value):
@@ -636,7 +622,6 @@ class JSDebugEvent(_PyV8.JSDebugEvent):
     onBeforeCompile = None
     onAfterCompile = None
 
-
 class JSDebugger(JSDebugProtocol, JSDebugEvent):
     def __init__(self):
         JSDebugProtocol.__init__(self)
@@ -738,15 +723,31 @@ class JSDebugger(JSDebugProtocol, JSDebugEvent):
         """Perform a minimum step in the current function."""
         return self.debugContinue(action='out', steps=steps)
 
+class JSProfiler(_PyV8.JSProfiler):
+    @property
+    def logs(self):
+        pos = 0
+
+        while True:
+            size, buf = self.getLogLines(pos)
+
+            if size == 0:
+                break
+
+            for line in buf.split('\n'):
+                yield line
+
+            pos += size
+
+profiler = JSProfiler()
 
 JSObjectSpace = _PyV8.JSObjectSpace
 JSAllocationAction = _PyV8.JSAllocationAction
 
-
 class JSEngine(_PyV8.JSEngine):
     def __init__(self):
         _PyV8.JSEngine.__init__(self)
-
+        
     def __enter__(self):
         return self
 
@@ -759,7 +760,6 @@ JSStackTrace = _PyV8.JSStackTrace
 JSStackTrace.Options = _PyV8.JSStackTraceOptions
 JSStackFrame = _PyV8.JSStackFrame
 
-
 class JSIsolate(_PyV8.JSIsolate):
     def __enter__(self):
         self.enter()
@@ -770,7 +770,6 @@ class JSIsolate(_PyV8.JSIsolate):
         self.leave()
 
         del self
-
 
 class JSContext(_PyV8.JSContext):
     def __init__(self, obj=None, extensions=None, ctxt=None):
@@ -797,7 +796,6 @@ class JSContext(_PyV8.JSContext):
 
         del self
 
-
 # contribute by marc boeker <http://code.google.com/u/marc.boeker/>
 def convert(obj):
     if type(obj) == _PyV8.JSArray:
@@ -807,7 +805,6 @@ def convert(obj):
         return dict([[str(k), convert(obj.__getattr__(str(k)))] for k in (obj.__dir__() if is_py3k else obj.__members__)])
 
     return obj
-
 
 class AST:
     Scope = _PyV8.AstScope
@@ -865,7 +862,7 @@ class AST:
     Assignment = _PyV8.AstAssignment
     Throw = _PyV8.AstThrow
     Function = _PyV8.AstFunctionLiteral
-    NativeFunction = _PyV8.AstNativeFunctionLiteral
+    SharedFunction = _PyV8.AstSharedFunctionInfoLiteral
     This = _PyV8.AstThisFunction
 
 from datetime import *
@@ -910,7 +907,7 @@ class TestContext(unittest.TestCase):
                 self.assertEqual(l.name, str(JSContext.current.locals.name))
 
             self.assertTrue(bool(JSContext.inContext))
-            #self.assertEqual(g.name, str(JSContext.entered.locals.name))
+            self.assertEqual(g.name, str(JSContext.entered.locals.name))
             self.assertEqual(g.name, str(JSContext.current.locals.name))
 
         self.assertTrue(not bool(JSContext.entered))
@@ -1177,7 +1174,7 @@ class TestWrapper(unittest.TestCase):
             self.assertEqual(14, func.colnum)
             self.assertEqual(0, func.lineoff)
             self.assertEqual(0, func.coloff)
-
+            
             #TODO fix me, why the setter doesn't work?
             # func.name = "hello"
             # it seems __setattr__ was called instead of CJavascriptFunction::SetName
@@ -1276,7 +1273,7 @@ class TestWrapper(unittest.TestCase):
                     self.assertEqual(35, e.endCol)
                     self.assertEqual('throw Error("hello world");', e.sourceLine.strip())
                     self.assertEqual('Error: hello world\n' +
-                                     '    at Error (native)\n' +
+                                     '    at Error (<anonymous>)\n' +
                                      '    at hello (test:14:35)\n' +
                                      '    at test:17:25', e.stackTrace)
 
@@ -1575,7 +1572,7 @@ class TestWrapper(unittest.TestCase):
 
             self.assertTrue(now1)
 
-            now2 = datetime.now()
+            now2 = datetime.utcnow()
 
             delta = now2 - now1 if now2 > now1 else now1 - now2
 
@@ -1586,11 +1583,6 @@ class TestWrapper(unittest.TestCase):
             now = datetime.now()
 
             self.assertTrue(str(func(now)).startswith(now.strftime("%a %b %d %Y %H:%M:%S")))
-
-            ctxt.eval("function identity(x) { return x; }")
-            # JS only has millisecond resolution, so cut it off there
-            now3 = now2.replace(microsecond=123000)
-            self.assertEqual(now3, ctxt.locals.identity(now3))
 
     def testUnicode(self):
         with JSContext() as ctxt:
@@ -1621,10 +1613,7 @@ class TestWrapper(unittest.TestCase):
         class Global(JSClass):
             pass
 
-        g = Global()
-        g_refs = sys.getrefcount(g)
-
-        with JSContext(g) as ctxt:
+        with JSContext(Global()) as ctxt:
             ctxt.eval("""
                 var none = null;
             """)
@@ -1636,10 +1625,6 @@ class TestWrapper(unittest.TestCase):
             """)
 
             self.assertEqual(count+1, sys.getrefcount(None))
-
-            del ctxt
-
-        self.assertEqual(g_refs, sys.getrefcount(g))
 
     def testProperty(self):
         class Global(JSClass):
@@ -1836,29 +1821,6 @@ class TestWrapper(unittest.TestCase):
         with JSContext(Global()) as ctxt:
             self.assertEqual(None, ctxt.eval('document.x'))
             self.assertRaises(TypeError, ctxt.eval, 'document.y')
-
-    def testUndefined(self):
-        class Global(JSClass):
-            def returnNull(self):
-                return JSNull()
-
-            def returnUndefined(self):
-                return JSUndefined()
-
-            def returnNone(self):
-                return None
-
-        with JSContext(Global()) as ctxt:
-            self.assertFalse(bool(JSNull()))
-            self.assertFalse(bool(JSUndefined()))
-
-            self.assertEqual("null", str(JSNull()))
-            self.assertEqual("undefined", str(JSUndefined()))
-
-            self.assertTrue(ctxt.eval('null == returnNull()'))
-            self.assertTrue(ctxt.eval('undefined == returnUndefined()'))
-            self.assertTrue(ctxt.eval('null == returnNone()'))
-
 
 class TestMultithread(unittest.TestCase):
     def testLocker(self):
@@ -2308,6 +2270,30 @@ class TestDebug(unittest.TestCase):
 
         self.assertEqual(4, len(self.events))
 
+class TestProfile(unittest.TestCase):
+    def _testStart(self):
+        self.assertFalse(profiler.started)
+
+        profiler.start()
+
+        self.assertTrue(profiler.started)
+
+        profiler.stop()
+
+        self.assertFalse(profiler.started)
+
+    def _testResume(self):
+        self.assertTrue(profiler.paused)
+
+        self.assertEqual(profiler.Modules.cpu, profiler.modules)
+
+        profiler.resume()
+
+        profiler.resume(profiler.Modules.heap)
+
+        # TODO enable profiler with resume
+        #self.assertFalse(profiler.paused)
+
 
 class TestAST(unittest.TestCase):
 
@@ -2381,18 +2367,13 @@ class TestAST(unittest.TestCase):
 . . VAR "i"
 . . VAR "j"
 . BLOCK INIT
-. . EXPRESSION STATEMENT
-. . . CALL RUNTIME
-. . . . NAME InitializeVarGlobal
-. . . . LITERAL "i"
-. . . . LITERAL 0
-. . EXPRESSION STATEMENT
-. . . CALL RUNTIME
-. . . . NAME InitializeVarGlobal
-. . . . LITERAL "j"
-. . . . LITERAL 0
+. . CALL RUNTIME  InitializeVarGlobal
+. . . LITERAL "i"
+. . . LITERAL 0
+. . CALL RUNTIME  InitializeVarGlobal
+. . . LITERAL "j"
+. . . LITERAL 0
 """, checker.ast)
-
             self.assertEqual([u'FunctionLiteral', {u'name': u''},
                 [u'Declaration', {u'mode': u'VAR'},
                     [u'Variable', {u'name': u'i'}]
@@ -2417,6 +2398,8 @@ class TestAST(unittest.TestCase):
                 self.assertEqual(AST.NodeType.IfStatement, stmt.type)
 
                 self.assertEqual(7, stmt.pos)
+                stmt.pos = 100
+                self.assertEqual(100, stmt.pos)
 
                 self.assertTrue(stmt.hasThenStatement)
                 self.assertTrue(stmt.hasElseStatement)
@@ -2470,7 +2453,7 @@ class TestAST(unittest.TestCase):
                 self.assertEqual("{ i += 1; }", str(stmt.body))
 
                 self.assertEqual("(i < 10)", str(stmt.condition))
-                self.assertEqual(283, stmt.condition.pos)
+                self.assertEqual(281, stmt.conditionPos)
 
         with ForStatementChecker(self) as checker:
             self.assertEqual(['for', 'forIn', 'while', 'doWhile'], checker.test("""
@@ -2644,14 +2627,12 @@ class TestAST(unittest.TestCase):
             def onBinaryOperation(self, expr):
                 self.called.append('binOp')
 
-                if expr.op == AST.Op.BIT_XOR:
-                    self.assertEqual("i", str(expr.left))
-                    self.assertEqual("-1", str(expr.right))
-                    self.assertEqual(124, expr.pos)
-                else:
-                    self.assertEqual("i", str(expr.left))
-                    self.assertEqual("j", str(expr.right))
-                    self.assertEqual(36, expr.pos)
+                self.assertEqual(AST.Op.ADD, expr.op)
+                self.assertEqual("i", str(expr.left))
+                self.assertEqual("j", str(expr.right))
+                self.assertEqual(36, expr.pos)
+
+                #print "bin", expr
 
             def onAssignment(self, expr):
                 self.called.append('assign')
@@ -2702,11 +2683,11 @@ class TestAST(unittest.TestCase):
                 self.assertEqual("i", str(expr.thenExpr))
                 self.assertEqual("j", str(expr.elseExpr))
 
-                self.assertEqual(144, expr.thenExpr.pos)
-                self.assertEqual(146, expr.elseExpr.pos)
+                self.assertEqual(144, expr.thenExprPos)
+                self.assertEqual(146, expr.elseExprPos)
 
         with OperationChecker(self) as checker:
-            self.assertEqual(['binOp', 'assign', 'countOp', 'compOp', 'compOp', 'binOp', 'conditional'], checker.test("""
+            self.assertEqual(['binOp', 'assign', 'countOp', 'compOp', 'compOp', 'unaryOp', 'conditional'], checker.test("""
             var i, j;
             i+j;
             i+=1;
@@ -2730,7 +2711,7 @@ class TestAST(unittest.TestCase):
                 self.assertFalse(case.isDefault)
                 self.assertTrue(case.label.isString)
                 self.assertEqual(0, case.bodyTarget.pos)
-                self.assertEqual(57, case.pos)
+                self.assertEqual(57, case.position)
                 self.assertEqual(1, len(case.statements))
 
                 case = stmt.cases[1]
@@ -2738,7 +2719,7 @@ class TestAST(unittest.TestCase):
                 self.assertTrue(case.isDefault)
                 self.assertEqual(None, case.label)
                 self.assertEqual(0, case.bodyTarget.pos)
-                self.assertEqual(109, case.pos)
+                self.assertEqual(109, case.position)
                 self.assertEqual(1, len(case.statements))
 
         with SwitchStatementChecker(self) as checker:
