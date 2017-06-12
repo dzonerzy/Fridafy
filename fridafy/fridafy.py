@@ -426,7 +426,10 @@ def main():
         engine = FridafyEngine()
         engine.set_message_callback(on_message)
         engine.execute(script)
-        raw_input()
+        try:
+            raw_input()
+        except (KeyboardInterrupt, EOFError):
+            print("[-] Please press enter when you want to quit")
 
 if __name__ == "__main__":
     main()
