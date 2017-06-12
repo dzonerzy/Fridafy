@@ -18,3 +18,6 @@ function equalsHookFunction(data)
 {
     send("Hello World!");
 }
+// Start the actual hooking process, com.android.vending is the process we want to hook
+helper.start("com.android.vending");
+

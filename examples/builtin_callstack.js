@@ -22,3 +22,5 @@ function equalsHookFunction(data)
     var stackArray = callstack(false);
     send(stackArray[stackArray.length-1]);
 }
+// Start the actual hooking process, com.android.vending is the process we want to hook
+helper.start("com.android.vending");

@@ -23,3 +23,5 @@ function doFinalHookFunction(data)
     // otherwise you can check the parameters type
     // if(data.params[0].type == "java.lang.String") { .... then do something
 }
+// Start the actual hooking process, com.android.vending is the process we want to hook
+helper.start("com.android.vending");

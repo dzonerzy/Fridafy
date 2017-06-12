@@ -29,3 +29,5 @@ function equalsHookFunction(data)
     // show an element from array
     send("2 == " + myArray[2]);
 }
+// Start the actual hooking process, com.android.vending is the process we want to hook
+helper.start("com.android.vending");

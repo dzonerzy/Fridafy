@@ -27,9 +27,13 @@ import subprocess
 from v8 import *
 import argparse
 import sys
+import os
 
 def install_v8(path):
-    subprocess.Popen(["python", path, "install"]).wait()
+    old_dir = os.getcwd()
+    os.chdir(path)
+    subprocess.Popen(["python", "setup.py", "install"]).wait()
+    os.chdir(old_dir)
 
 parser = argparse.ArgumentParser("Fridafy Installer")
 group = parser.add_mutually_exclusive_group()

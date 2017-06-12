@@ -22,3 +22,5 @@ function equalsHookFunction(data)
     // using create_global_class api we have defined a new Exception object , now let's throw it
     throw myExceptionClass;
 }
+// Start the actual hooking process, com.android.vending is the process we want to hook
+helper.start("com.android.vending");
