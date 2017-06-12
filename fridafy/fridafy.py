@@ -365,7 +365,6 @@ try
             full_script += self.bin2str_support + "\n"
         full_script += "".join(self.hooks)
         script = self.script_base % (full_script)
-        print script
         self.injector.set_script(script)
         self.injector.set_process(process_name)
         self.injector.start()
