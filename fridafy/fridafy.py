@@ -28,6 +28,7 @@ from pyv8.PyV8 import *
 import argparse
 import frida
 import time
+import sys
 import re
 
 __all__ = ["version", "FridafyEngine"]
@@ -343,34 +344,37 @@ try
         self.injector.set_process(process_name)
         self.injector.start()
 
+class Global():
+    def FridaHelper(self):
+        return FridaHelper()
+
+    def sleep(self, milliseconds):
+        time.sleep(milliseconds/1000)
+
+    def send(self, text):
+        print("[*] {0}".format(text))
+
+    def callstack(self, *args):
+        pass
+
+    def hexdump(self, *args):
+        pass
+
+    def bin2str(self, *args):
+        pass
+
 class FridafyEngine(object):
     def __init__(self):
         self.message_callback = None
+        self.cursor = "[JS]> "
+        self.use_previous = False
+        self.global_script = ""
 
     def set_message_callback(self, callback):
         if callable(callback):
             self.message_callback = callback
 
     def execute(self, script):
-        class Global():
-            def FridaHelper(self):
-                return FridaHelper()
-
-            def sleep(self, milliseconds):
-                time.sleep(milliseconds/1000)
-
-            def send(self, text):
-                print("[*] {0}".format(text))
-
-            def callstack(self, *args):
-                pass
-
-            def hexdump(self, *args):
-                pass
-
-            def bin2str(self, *args):
-                pass
-
         with JSContext(Global()) as ctx:
             try:
                 ctx.eval(script)
@@ -378,33 +382,69 @@ class FridafyEngine(object):
                 if self.message_callback:
                     self.message_callback({"type": "error", "description": str(e)})
                 else:
-                    raise e
+                    print("{0}: {1}".format(e.name, e.message))
+
+    def interact(self):
+         with JSContext(Global()) as ctx:
+             while True:
+                 try:
+                    script = raw_input(self.cursor)
+                    try:
+                        if self.use_previous:
+                            res = ctx.eval(self.global_script + script)
+                        else:
+                            res = ctx.eval(script)
+                        if res is not None:
+                            print str(res).encode('utf-8')
+                        else:
+                            if script:
+                                print "undefined"
+                        self.use_previous = False
+                        self.cursor = "[JS]> "
+                    except Exception as e:
+                        if e.message == "Unexpected end of input":
+                            self.global_script += script
+                            self.cursor = "... "
+                            self.use_previous = True
+                        else:
+                            self.use_previous = False
+                            self.global_script = ""
+                            print "{0}: {1}".format(e.name, e.message)
+                 except KeyboardInterrupt:
+                     print
+                 except EOFError:
+                     break
 
 def main():
     parser = argparse.ArgumentParser(description="Fridafy Engine")
-    parser.add_argument("-s", metavar="script", help="Script to run", required=True, dest="script")
+    parser.add_argument("-s", metavar="script", help="Script to run", required=False, dest="script")
     args = parser.parse_args()
-    script = ""
-    try:
-        with open(args.script, "r") as script_file:
-            script = script_file.read()
-            script_file.close()
-    except IOError:
-        print("Error: Unable to find script file")
-
-    def on_message(data):
-        if data["type"] == "error":
-            print(data["description"])
-            exit(0)
-    if(script):
-        engine = FridafyEngine()
-        engine.set_message_callback(on_message)
-        print("[*] Waiting for application...")
-        engine.execute(script)
+    if args.script:
+        script = ""
         try:
-            raw_input()
-        except (KeyboardInterrupt, EOFError):
-            print("[-] Exiting...")
+            with open(args.script, "r") as script_file:
+                script = script_file.read()
+                script_file.close()
+        except IOError:
+            print("Error: Unable to find script file")
+
+        def on_message(data):
+            if data["type"] == "error":
+                print(data["description"])
+                exit(0)
+        if(script):
+            engine = FridafyEngine()
+            engine.set_message_callback(on_message)
+            print("[*] Waiting for application...")
+            engine.execute(script)
+            try:
+                raw_input()
+            except (KeyboardInterrupt, EOFError):
+                print("[-] Exiting...")
+    else:
+        print("[*] Launching FridaEngine interactive console - press CTRL+D to exit\n")
+        engine = FridafyEngine()
+        engine.interact()
 
 if __name__ == "__main__":
     main()
