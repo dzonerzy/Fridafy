@@ -34,24 +34,6 @@ __all__ = ["version", "FridafyEngine"]
 
 version = "0.1"
 
-class InjectorException(BaseException):
-    pass
-
-class InjectorUnknownProcess(InjectorException):
-    message = "Unable to attach to undefined process"
-
-class InjectorServerUnreachable(InjectorException):
-    message = "Unable to reach frida server"
-
-class InjectorServerTimeout(InjectorException):
-    message = "Server timeout reached while communicating"
-
-class InjectorScriptError(InjectorException):
-    message = "The script contains an error"
-
-class InjectorGenericError(InjectorException):
-    message = "Something weird happen sorry"
-
 class Injector(object):
     def __init__(self, process=None, script=None, message_callback=None):
         self.process = process
@@ -96,7 +78,7 @@ class Injector(object):
                 except Exception:
                     pass
         else:
-            raise InjectorUnknownProcess
+            print("[-] Error a process must be specified!")
 
     def stop(self):
         self.running = False
@@ -110,6 +92,8 @@ class Injector(object):
         self.attach()
         try:
             self.frida_script = self.frida_process.create_script(self.get_script())
+            self.frida_script.on('message', self.on_message)
+            self.frida_script.load()
         except frida.InvalidArgumentError as e:
             message = e.args[0]
             line = re.compile('Script\(line (\d+)\)')
@@ -120,12 +104,8 @@ class Injector(object):
             else:
                 lines = "=> {0}".format(script[line])
             print "[-] Error on line {0}:\n{1}: \n\n{2}".format(line, line, lines)
-            raise InjectorScriptError
         except Exception as e:
             print("[-] Something weird happened during initialization: {0}".format(e))
-            raise InjectorGenericError
-        self.frida_script.on('message', self.on_message)
-        self.frida_script.load()
         while self.running:
             try:
                 pass
@@ -173,7 +153,7 @@ function hexdump(buffer)
         chars +=  " ".repeat(blockSize - block.length);
         lines.push(addr + " " + codes + "  " + chars);
     }
-    return lines.join("\\n");
+    return "\\n"+lines.join("\\n");
 }
     """
     has_callstack_support = False
@@ -292,12 +272,11 @@ try
 try
 {
     var %s = Java.use('%s').$new();
-    send("Created class %s as %s");
 }catch(e){
     send(e.toString());
 }
 
-        """ % (variable_name, class_name, class_name, variable_name)
+        """ % (variable_name, class_name)
 
     def support_bin2str(self, flag):
         self.has_bin2str_support = flag
@@ -342,11 +321,6 @@ try
             hook_string += "{0}(signature);\n".format(callback.name)
             hook_string += "return ret;\n}\n"
             method_index += 1
-        callback = str(callback)
-        if "write(" in callback:
-            callback = callback.replace("write(", "send(")
-        if "writeln(" in callback:
-            callback = callback.replace("writeln(", "send(")
         hook_string += str(callback) + "\n"
         self.class_index += 1
         self.hooks.append(hook_string)
@@ -425,11 +399,14 @@ def main():
     if(script):
         engine = FridafyEngine()
         engine.set_message_callback(on_message)
+        print("[*] Waiting for application...")
         engine.execute(script)
         try:
             raw_input()
         except (KeyboardInterrupt, EOFError):
-            print("[-] Please press enter when you want to quit")
+            print("[-] Exiting...")
 
 if __name__ == "__main__":
     main()
+
+
