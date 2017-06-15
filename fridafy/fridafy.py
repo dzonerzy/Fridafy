@@ -28,7 +28,6 @@ from pyv8.PyV8 import *
 import argparse
 import frida
 import time
-import sys
 import re
 
 __all__ = ["version", "FridafyEngine"]
@@ -135,26 +134,39 @@ send("Proudly powered by Fridafy v{0}");
     class_created = ""
     has_object_created = False
     object_created = ""
-    has_hexdump_support = False
-    hexdump_support = """
-function hexdump(buffer)
+    has_dump_support = False
+    dump_support = """
+function dump(buffer, length)
 {
-    blockSize = 16;
-    var lines = [];
-    var hex = "0123456789ABCDEF";
-    for (var b = 0; b < buffer.length; b += blockSize) {
-        var block = buffer.slice(b, Math.min(b + blockSize, buffer.length));
-        var addr = ("0000" + b.toString(16)).slice(-4);
-        var codes = block.split('').map(function (ch) {
+    try
+    {
+        return "\\n" + hexdump(buffer, { offset: 0, length: length, header: true, ansi: true });
+    }catch(e){
+        if(typeof buffer != "string")
+        {
+            var result = "";
+            for (var i = 0; i < buffer.length; i++) {
+                result += String.fromCharCode(((buffer[i]%256)+256)%256);
+            }
+            buffer = result;
+        }
+        blockSize = 16;
+        var lines = [];
+        var hex = "0123456789ABCDEF";
+        for (var b = 0; b < buffer.length; b += blockSize) {
+            var block = buffer.slice(b, Math.min(b + blockSize, buffer.length));
+            var addr = ("0000" + b.toString(16)).slice(-4);
+            var codes = block.split('').map(function (ch) {
                 var code = ch.charCodeAt(0);
                 return " " + hex[(0xF0 & code) >> 4] + hex[0x0F & code];
-        }).join("");
-        codes += "   ".repeat(blockSize - block.length);
-        var chars = block.replace(/[\\x00-\\x1F\\x20]/g, '.');
-        chars +=  " ".repeat(blockSize - block.length);
-        lines.push(addr + " " + codes + "  " + chars);
+            }).join("");
+            codes += "   ".repeat(blockSize - block.length);
+            var chars = block.replace(/[\\x00-\\x1F\\x20]/g, '.');
+            chars +=  " ".repeat(blockSize - block.length);
+            lines.push(addr + " " + codes + "  " + chars);
+        }
+        return "\\n"+lines.join("\\n");
     }
-    return "\\n"+lines.join("\\n");
 }
     """
     has_callstack_support = False
@@ -196,6 +208,15 @@ function modulus(x, n)
         return ((x%n)+n)%n;
 }
     """
+    has_save2disk_support = False
+    save2disk_support = """
+function save2disk(path, data)
+{
+    var dumpFile = new File(path, "wb");
+    dumpFile.write(data);
+    dumpFile.close();
+}
+"""
 
     @property
     def CLASS_CONSTRUCTOR(self):
@@ -282,8 +303,11 @@ try
     def support_bin2str(self, flag):
         self.has_bin2str_support = flag
 
-    def support_hexdump(self, flag):
-        self.has_hexdump_support = flag
+    def support_save2disk(self, flag):
+        self.has_save2disk_support = flag
+
+    def support_dump(self, flag):
+        self.has_dump_support = flag
 
     def support_callstack(self, flag):
         if flag:
@@ -326,20 +350,54 @@ try
         self.class_index += 1
         self.hooks.append(hook_string)
 
+    def find_and_hook_native(self, library_name, method_name, callback):
+        hook_string = """
+Interceptor.attach(Module.findExportByName("%s", "%s"), {
+    onEnter: function(args)
+    {
+         %s({"value": null, "is_result": false, "args": args});
+    },
+    onLeave: function(retval)
+    {
+        %s({"value": retval, "is_result": true, "args": null});
+    }
+});
+
+%s\n
+        """ % (library_name, method_name, str(callback.name), str(callback.name), str(callback))
+        print hook_string
+        self.hooks.append(hook_string)
+
+    def reset(self):
+        self.has_bin2str_support = False
+        self.has_object_created = False
+        self.has_callstack_support = False
+        self.has_class_created = False
+        self.has_hexdump_support = False
+        self.class_created = ""
+        self.object_created = ""
+        self.hooks = []
+
+    def stop(self):
+        self.injector.stop()
+
     def start(self, process_name):
         full_script = ""
         if self.has_class_created:
             full_script += self.class_created + "\n"
         if self.has_object_created:
             full_script += self.object_created + "\n"
-        if self.has_hexdump_support:
-            full_script += self.hexdump_support + "\n"
+        if self.has_dump_support:
+            full_script += self.dump_support + "\n"
         if self.has_callstack_support:
             full_script += self.callstack_support + "\n"
         if self.has_bin2str_support:
             full_script += self.bin2str_support + "\n"
+        if self.has_save2disk_support:
+            full_script += self.save2disk_support + "\n"
         full_script += "".join(self.hooks)
         script = self.script_base % (full_script)
+        print script
         self.injector.set_script(script)
         self.injector.set_process(process_name)
         self.injector.start()
