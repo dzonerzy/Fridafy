@@ -9,12 +9,10 @@ helper.find_and_hook_method("com.android.vending", "java.lang.String", "equals",
 // equals is the method to hook , you don't have to worry about overloads everyone is hooked at once
 // equalsHookFunction is where we land once equals is called
 
-// this will enable a global function called hexdump which allow show an hexdump of some data
+// this will enable a global function called callstack which allow show the entire callstack till now
 helper.support_callstack(true);
-
-// this will enable a global function called bin2str which allow to convert an array of byte to a string
-helper.support_bin2str(true);
-
+// this will enable a global function called dump which allow show an hexdump of some data
+helper.support_dump(true);
 // Define a land function equalsHookFunction, it must accept a "data" parameters, here you will receive every info
 // regarding caller class such as (overload name, parameters types and value and much more)
 // remember every hook function is called twice on enter and on exit, so you will see Hello World two times!
@@ -38,7 +36,7 @@ function equalsHookFunction(data)
             send("type => " + data.params[i].type);
             // print out value (toString)
             // let's assume that our input is an array , and let's show an hexdump
-            send("value => \n" + bin2str(hexdump(data.params[i].value)));
+            send("value => \n" + dump(data.params[i].value.toString(), data.params[i].value.length));
         }
     }
 }
